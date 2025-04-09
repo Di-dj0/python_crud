@@ -4,7 +4,7 @@ import database_handler as db
 class CRUD:
 
     def __init__(self):
-        self.database = db.database_handler
+        self.database = db.database_handler()
         # AF_INET = IPV4; SOCK_STREAM = TCP
         self.listener = socket.socket(socket.AF_INET,
                                       socket.SOCK_STREAM)
@@ -13,6 +13,8 @@ class CRUD:
     def awaitConnection(self):
         self.listener.listen(1)
         client_socket, _ = self.listener.accept()
+        print("Client connected")
+        self.processRequest(client_socket)
     
     def processRequest(self, client_socket:socket.socket):
         while(True):
@@ -23,6 +25,7 @@ class CRUD:
                 break
 
             opcode = int.from_bytes(opcode, 'big')
+            print("Opcode: ", opcode)
 
             match opcode:
                 case 1:
@@ -39,10 +42,22 @@ class CRUD:
                     sal_size = int.from_bytes(client_socket.recv(1), 'big')
                     sal = client_socket.recv(sal_size).decode()
 
-                    id = self.add_new_employee(self, name, age, sex, adr, sec, sal)
+                    print("Package received:", name, age, sex, adr, sec, sal)
+
+                    id = self.database.add_new_employee(name, age, sex, adr, sec, sal)
 
                     if id is None:
                         id = -1
                     
                     msg = opcode.to_bytes(1, 'big') + id.to_bytes(1, 'big', signed=True)
                     client_socket.send(msg)
+
+def main():
+    c = CRUD()
+    print("Started server")
+    # this makes so that the client can connect and disconnect any time
+    while True:
+        c.awaitConnection()
+
+if __name__ == "__main__":
+    main()
