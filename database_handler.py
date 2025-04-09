@@ -40,6 +40,9 @@ class database_handler:
         
         # we don't need to commit here, just close the cursor
         cursor.close()
+        # here we verify if the fetchone() method has found a row with the specified id
+        if value is None:
+            value = -1
         return value
     
     def update_employee_data(self, id, name = None, age = None, sex = None, adress = None, sector = None, salary = None):
@@ -70,14 +73,9 @@ class database_handler:
                 data = None
 
             cursor.close()
-            return data
+        return data
         
     def delete_employee_data(self, id):
-        # first we verify if the id exists
-        if(not self.search_employee(id)):
-            # if it dont, we return an error code
-            return -2
-
         # we create a cursor to execute sql code
         cursor = self.connection.cursor()
         cursor.execute("DELETE FROM employee_data WHERE id = ?", (id,))
