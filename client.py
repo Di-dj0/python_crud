@@ -1,10 +1,16 @@
 import socket
 import re
+import os
+
+# simple function to clear the console by os
+clear = lambda: os.system('cls' if os.name=='nt' else 'clear')
+clear()
+
+# we created regexes for every data asked for the user
+numbers_regex = r'-?\d+(?:\.\d+)?'
+letters_and_symbols_regex = r'[A-Za-z!@#$%^&*()_+\-=\[\]{};:\'",.<>/?\\|`~]'
 
 def askInfo():
-    # we created regexes for every data asked for the user
-    numbers_regex = r'-?\d+(?:\.\d+)?'
-    letters_and_symbols_regex = r'[A-Za-z!@#$%^&*()_+\-=\[\]{};:\'",.<>/?\\|`~]'
     name = input("Digite o nome do empregado\n")
     name = searchString(numbers_regex, name)
 
@@ -53,6 +59,11 @@ def createRequest(opcode, id = None, name = None, age = None, sex = None, adress
             msg += len(salary.encode()).to_bytes(1, 'big') + salary.encode()
 
             return msg
+        
+        case 2:
+            msg += id.to_bytes(1, 'big')
+
+            return msg
 
 def main():
     # we start creating the socket and option variable
@@ -64,7 +75,8 @@ def main():
 
     while option != 0:
         option = int(input("Selecione uma das opções abaixo\
-                        \n1. Adicionar novo trabalhador\
+                        \n1. Adicionar novo empregado\
+                        \n2. Procurar empregado por id\
                         \n\
                         \n0. Sair\n"))
         
@@ -73,6 +85,7 @@ def main():
                 name, age, sex, adress, sector, salary = askInfo()
                 msg = createRequest(option, None, name, age, sex, adress, sector, salary)
                 client.send(msg)
+                clear()
 
                 try:
                     opcode = client.recv(1)
@@ -83,6 +96,44 @@ def main():
                         print(f"Empregado {name} adicionado com sucesso!\nID: {id}")
                 except ConnectionAbortedError as e:
                     print("Conexão com o servidor abortada:", e)
+
+            case 2:
+                id = int(input("Digite o ID a ser procurado:\n"))
+                msg = createRequest(option, id)
+                client.send(msg)
+                clear()
+
+                try:
+                    opcode = int.from_bytes(client.recv(1), 'big', signed=True)
+
+                    if opcode == -1:
+                        print("Empregado não encontrado!\n\n")
+                    
+                    else:
+                        id = int.from_bytes(client.recv(1), 'big')
+                        name_size = int.from_bytes(client.recv(1), 'big')
+                        name = client.recv(name_size).decode()
+                        age = int.from_bytes(client.recv(1), "big")
+                        sex = client.recv(1).decode()
+                        adr_size = int.from_bytes(client.recv(1), 'big')
+                        adr = client.recv(adr_size).decode()
+                        sec_size = int.from_bytes(client.recv(1), 'big')
+                        sec = client.recv(sec_size).decode()
+                        sal_size = int.from_bytes(client.recv(1), 'big')
+                        sal = client.recv(sal_size).decode()
+
+                        clear()
+                        print(f"ID encontrado:\
+                            \nNome: {name}\
+                            \nIdade: {age}\
+                            \nSexo: {sex}\
+                            \nEndereço: {adr}\
+                            \nSetor: {sec}\
+                            \nSalário: {sal}\n")
+                except ConnectionAbortedError as e:
+                    print("Conexão com o servidor abortada:", e)
+                    
+
 
 if __name__ == "__main__":
     main()

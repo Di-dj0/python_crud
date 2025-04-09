@@ -28,6 +28,7 @@ class CRUD:
             print("Opcode: ", opcode)
 
             match opcode:
+                # add new employee
                 case 1:
                     # the package will be built as follow
                     # name_size | name | age = 1B | sex = 1B | adr_size | adr | sec_size | sec | salary_size | salary
@@ -51,6 +52,43 @@ class CRUD:
                     
                     msg = opcode.to_bytes(1, 'big') + id.to_bytes(1, 'big', signed=True)
                     client_socket.send(msg)
+
+                # search
+                case 2:
+                    # package:
+                    # id(1)
+                    id = int.from_bytes(client_socket.recv(1), 'big')
+                    print("Searching ID:", id)
+                    data = self.database.search_employee(id)
+
+                    if data == -1:
+                        print("Not found")
+                    else:
+                        print("Found:", data)
+
+                    # if we found an employee with the id we populate every var
+                    if data != -1:
+                        msg = opcode.to_bytes(1, 'big')
+                        # id
+                        msg += id.to_bytes(1, 'big')
+                        # name
+                        msg += len(data[1].encode()).to_bytes(1, 'big') + data[1].encode()
+                        # age
+                        msg += data[2].to_bytes(1, 'big')
+                        # sex
+                        msg += data[3].encode()
+                        # adress
+                        msg += len(data[4].encode()).to_bytes(1, 'big') + data[4].encode()
+                        # sector
+                        msg += len(data[5].encode()).to_bytes(1, 'big') + data[5].encode()
+                        # salary
+                        msg += len(data[6].encode()).to_bytes(1, 'big') + data[6].encode()
+                    else:
+                        msg = data.to_bytes(1, 'big', signed=True)
+                    
+                    client_socket.send(msg)
+                    
+
 
 def main():
     c = CRUD()
