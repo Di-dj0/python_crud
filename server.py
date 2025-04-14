@@ -1,4 +1,7 @@
 import socket
+
+from distributed.utils_test import client
+
 import database_handler as db
 
 class CRUD:
@@ -87,7 +90,51 @@ class CRUD:
                         msg = data.to_bytes(1, 'big', signed=True)
                     
                     client_socket.send(msg)
-                    
+
+                case 3:
+                    id = int.from_bytes(client_socket.recv(1), 'big')
+                    print("Updating ID:", id)
+
+                    name_size = int.from_bytes(client_socket.recv(1), 'big')
+                    name = client_socket.recv(name_size).decode() if name_size > 0 else None
+                    print("Name:", name)
+
+                    mode = client_socket.recv(1).decode()
+                    if mode == "1":
+                        age = None
+                    else:
+                        age = int.from_bytes(client_socket.recv(2), 'big', signed=True)
+                    print("Age:", age)
+
+                    sex_size = int.from_bytes(client_socket.recv(1), 'big')
+                    sex = client_socket.recv(1).decode() if sex_size > 0 else None
+                    print("Sex", sex)
+
+                    adr_size = int.from_bytes(client_socket.recv(1), 'big')
+                    adr = client_socket.recv(adr_size).decode() if adr_size > 0 else None
+                    print("Adr:", adr)
+
+                    sec_size = int.from_bytes(client_socket.recv(1), 'big')
+                    sec = client_socket.recv(sec_size).decode() if sec_size > 0 else None
+
+                    print("Sec:", sec)
+
+                    sal_size = int.from_bytes(client_socket.recv(1), 'big')
+                    sal = client_socket.recv(sal_size).decode() if sal_size > 0 else None
+
+                    print("Sal:", sal)
+
+                    print("passou por todos os dados")
+                    data = self.database.update_employee_data(id, name, age, sex, adr, sec, sal)
+
+                    if data is not None:
+                        data = 1
+                        msg = data.to_bytes(1, 'big', signed=True)
+                    else:
+                        data = -1
+                        msg = data.to_bytes(1, 'big', signed=True)
+
+                    client_socket.send(msg)
 
 
 def main():

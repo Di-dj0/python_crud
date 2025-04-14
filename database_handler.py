@@ -63,7 +63,7 @@ class database_handler:
 
             # now we create a cursor
             cursor = self.connection.cursor()
-            cursor.execute("UPDATE employee_data SET name = ?, age = ?, sex = ?, adress = ?, sector = ?, salary = ? WHERE id = ?", (name, age, sex, adress, sector, salary, id))
+            cursor.execute("UPDATE employee_data SET name = ?, age = ?, sex = ?, adress = ?, sector = ?, salary = ? WHERE id = ?", (new_name, new_age, new_sex, new_adress, new_sector, new_salary, id))
             self.connection.commit()
 
             # here we use the rowcount to see if any employee data was change

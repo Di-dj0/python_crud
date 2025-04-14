@@ -15,14 +15,17 @@ def askInfo():
     name = searchString(numbers_regex, name)
 
     age = input("Digite a idade\n")
-    age = int(searchString(letters_and_symbols_regex, age))
+    if age == "":
+        age = ""
+    else:
+        age = int(searchString(letters_and_symbols_regex, age))
 
     sex = input("Digite o sexo\n")
     if len(sex) > 1:
         while(len(sex) > 1):
             sex = input("O sexo deve ser sinalizado usando M ou F apenas!\n")
             sex = searchString(numbers_regex, sex)
-    sex = searchString(numbers_regex, sex)
+        sex = searchString(numbers_regex, sex)
 
     adress = input("Digite o endereço\n")
 
@@ -65,6 +68,25 @@ def createRequest(opcode, id = None, name = None, age = None, sex = None, adress
 
             return msg
 
+        case 3:
+            msg += id.to_bytes(1, 'big')
+            msg += len(name.encode()).to_bytes(1, 'big') + name.encode()
+
+            if age == "":
+                mode = '1'
+                msg += mode.encode()
+            else:
+                mode = '0'
+                msg += mode.encode()
+                msg += age.to_bytes(2, 'big')
+
+
+            msg += len(sex.encode()).to_bytes(1, 'big') + sex.encode()
+            msg += len(adress.encode()).to_bytes(1, 'big') + adress.encode()
+            msg += len(sector.encode()).to_bytes(1, 'big') + sector.encode()
+            msg += len(salary.encode()).to_bytes(1, 'big') + salary.encode()
+            return msg
+
 def main():
     # we start creating the socket and option variable
     # AF_INET = IPV4; SOCK_STREAM = TCP
@@ -77,7 +99,7 @@ def main():
         option = int(input("Selecione uma das opções abaixo\
                         \n1. Adicionar novo empregado\
                         \n2. Procurar empregado por id\
-                        \n\
+                        \n3. Atualize os dados de um elemento através de ID\
                         \n0. Sair\n"))
         
         match option:
@@ -130,6 +152,29 @@ def main():
                             \nEndereço: {adr}\
                             \nSetor: {sec}\
                             \nSalário: {sal}\n")
+                except ConnectionAbortedError as e:
+                    print("Conexão com o servidor abortada:", e)
+
+            case 3:
+                id = int(input("Digite o ID que deseja atualizar:\n"))
+                print("Digite os dados que deseja atualizar, e para os demais pressione enter\n")
+                name, age, sex, adress, sector, salary = askInfo()
+                print("cheguei aqui")
+                msg = createRequest(option, id, name, age, sex, adress, sector, salary)
+                print("cheguei aqui 2")
+                client.send(msg)
+                print("mandou")
+                clear()
+
+                try:
+                    opcode = int.from_bytes(client.recv(1), 'big', signed=True)
+
+                    if opcode == -1:
+                        print("Id não encontrado ou atualização não realizada!\n\n")
+
+                    else:
+                        print(f" id:{id} atualizado com sucesso!\n")
+
                 except ConnectionAbortedError as e:
                     print("Conexão com o servidor abortada:", e)
                     
