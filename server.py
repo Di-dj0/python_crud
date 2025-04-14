@@ -99,6 +99,7 @@ class CRUD:
                     name = client_socket.recv(name_size).decode() if name_size > 0 else None
                     print("Name:", name)
 
+                    # We need to treat the age as a special case because it is an int
                     mode = client_socket.recv(1).decode()
                     if mode == "1":
                         age = None
@@ -124,9 +125,10 @@ class CRUD:
 
                     print("Sal:", sal)
 
-                    print("passou por todos os dados")
+                    #Check if the employee exists
                     data = self.database.update_employee_data(id, name, age, sex, adr, sec, sal)
 
+                    #If the employee was not found, we return -1 and if it was found it was probably updated
                     if data is not None:
                         data = 1
                         msg = data.to_bytes(1, 'big', signed=True)
@@ -136,6 +138,31 @@ class CRUD:
 
                     client_socket.send(msg)
 
+                case 4:
+                    id = int.from_bytes(client_socket.recv(1), 'big')
+                    print("Updating ID:", id)
+
+                    #First we need to check if the employee exists so then we can delete it
+                    data = self.database.search_employee(id)
+
+                    if data == -1:
+                        print("Not found")
+                        status = 'N'                                #Set a status in case of there is no employee with the given id
+                        msg = status.encode()
+                    else:
+                        result = self.database.delete_employee_data(id)
+                        print(result)
+                        print(id)
+                        if result == id:
+                            print("Deleted:", id)
+                            status = 'S'                            #Set a status in case of the employee was deleted
+                            msg = status.encode()
+                        else:
+                            print("Something went wrong, employee was not deleted")
+                            status = 'B'                            #Set a status in case of the employee not being deleted for any reason
+                            msg = status.encode()
+
+                    client_socket.send(msg)
 
 def main():
     c = CRUD()

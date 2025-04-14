@@ -82,7 +82,8 @@ class database_handler:
         self.connection.commit()
 
         # now we search for the employee data to verify the exclusion
-        if(not self.search_employee(id)):
+
+        if(self.search_employee(id)) == -1:
             value = id
         else:
             value = -1

@@ -87,6 +87,11 @@ def createRequest(opcode, id = None, name = None, age = None, sex = None, adress
             msg += len(salary.encode()).to_bytes(1, 'big') + salary.encode()
             return msg
 
+        case 4:
+            msg += id.to_bytes(1, 'big')
+
+            return msg
+
 def main():
     # we start creating the socket and option variable
     # AF_INET = IPV4; SOCK_STREAM = TCP
@@ -99,7 +104,8 @@ def main():
         option = int(input("Selecione uma das opções abaixo\
                         \n1. Adicionar novo empregado\
                         \n2. Procurar empregado por id\
-                        \n3. Atualize os dados de um elemento através de ID\
+                        \n3. Atualize os dados de um empregado através de ID\
+                        \n4. Deletar empregado\
                         \n0. Sair\n"))
         
         match option:
@@ -159,11 +165,8 @@ def main():
                 id = int(input("Digite o ID que deseja atualizar:\n"))
                 print("Digite os dados que deseja atualizar, e para os demais pressione enter\n")
                 name, age, sex, adress, sector, salary = askInfo()
-                print("cheguei aqui")
                 msg = createRequest(option, id, name, age, sex, adress, sector, salary)
-                print("cheguei aqui 2")
                 client.send(msg)
-                print("mandou")
                 clear()
 
                 try:
@@ -177,7 +180,28 @@ def main():
 
                 except ConnectionAbortedError as e:
                     print("Conexão com o servidor abortada:", e)
-                    
+
+            case 4:
+                id = int(input("Digite o ID que deseja deletar:\n"))
+
+
+                msg = createRequest(option, id)
+                client.send(msg)
+                clear()
+
+                try:
+                    status = client.recv(1).decode()
+
+                    if status == 'N':
+                        print("Id não encontrado ou atualização não existente!\n\n")
+                    elif status == 'S':
+                        print(f" id:{id} Deletado com sucesso!\n")
+                    else:
+                        print("O empregado não foi deletado por motivos desconhecidos. Tente novamente!\n\n")
+
+                except ConnectionAbortedError as e:
+                    print("Conexão com o servidor abortada:", e)
+
 
 
 if __name__ == "__main__":
