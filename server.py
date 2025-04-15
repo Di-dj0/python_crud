@@ -104,7 +104,7 @@ class CRUD:
                     if mode == "1":
                         age = None
                     else:
-                        age = int.from_bytes(client_socket.recv(2), 'big', signed=True)
+                        age = int.from_bytes(client_socket.recv(1), 'big', signed=True)
                     print("Age:", age)
 
                     sex_size = int.from_bytes(client_socket.recv(1), 'big')
@@ -129,7 +129,7 @@ class CRUD:
                     data = self.database.update_employee_data(id, name, age, sex, adr, sec, sal)
 
                     #If the employee was not found, we return -1 and if it was found it was probably updated
-                    if data is not None:
+                    if data != -1:
                         data = 1
                         msg = data.to_bytes(1, 'big', signed=True)
                     else:

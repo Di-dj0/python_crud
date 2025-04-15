@@ -50,7 +50,7 @@ class database_handler:
         data = self.search_employee(id)
 
         # we only change the employee data if the data is found
-        if(data is not None):
+        if(data != -1):
             # here we use a trick to change if the var is not None
             # if the var is None, we use the data extracted from the db
             # starting with 1 bc 0 is the id

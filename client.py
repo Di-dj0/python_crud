@@ -78,7 +78,7 @@ def createRequest(opcode, id = None, name = None, age = None, sex = None, adress
             else:
                 mode = '0'
                 msg += mode.encode()
-                msg += age.to_bytes(2, 'big')
+                msg += age.to_bytes(1, 'big')
 
 
             msg += len(sex.encode()).to_bytes(1, 'big') + sex.encode()
@@ -193,7 +193,7 @@ def main():
                     status = client.recv(1).decode()
 
                     if status == 'N':
-                        print("Id não encontrado ou atualização não existente!\n\n")
+                        print("Id não encontrado ou empregado não existente!\n\n")
                     elif status == 'S':
                         print(f" id:{id} Deletado com sucesso!\n")
                     else:
