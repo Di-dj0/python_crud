@@ -104,7 +104,7 @@ class CRUD:
                     if mode == "1":
                         age = None
                     else:
-                        age = int.from_bytes(client_socket.recv(2), 'big', signed=True)
+                        age = int.from_bytes(client_socket.recv(1), 'big', signed=True)
                     print("Age:", age)
 
                     sex_size = int.from_bytes(client_socket.recv(1), 'big')
