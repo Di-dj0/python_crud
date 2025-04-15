@@ -193,7 +193,7 @@ def main():
                     status = client.recv(1).decode()
 
                     if status == 'N':
-                        print("Id não encontrado ou atualização não existente!\n\n")
+                        print("Id não encontrado ou empregado não existente!\n\n")
                     elif status == 'S':
                         print(f" id:{id} Deletado com sucesso!\n")
                     else:

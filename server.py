@@ -129,7 +129,7 @@ class CRUD:
                     data = self.database.update_employee_data(id, name, age, sex, adr, sec, sal)
 
                     #If the employee was not found, we return -1 and if it was found it was probably updated
-                    if data is not None:
+                    if data != -1:
                         data = 1
                         msg = data.to_bytes(1, 'big', signed=True)
                     else:
