@@ -1,2 +1,6 @@
 # databases
 *.db
+
+# documents
+*.docx
+*.pdf
