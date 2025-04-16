@@ -82,11 +82,23 @@ class database_handler:
         self.connection.commit()
 
         # now we search for the employee data to verify the exclusion
-
         if(self.search_employee(id)) == -1:
             value = id
         else:
             value = -1
-        
         cursor.close()
         return value
+
+
+    def return_all_employee_data(self):
+        # we create a cursor to execute sql code
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT * FROM employee_data")
+
+        data = cursor.fetchall()
+        cursor.close()
+        
+        return data if data else -1
+
+        
+

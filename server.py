@@ -164,6 +164,42 @@ class CRUD:
 
                     client_socket.send(msg)
 
+                case 5:
+                    # as we are returning all the data, we don't need any parameteres
+                    data = self.database.return_all_employee_data()
+                    msg = opcode.to_bytes(1, 'big')
+
+                    # if we have any data
+                    if data != -1:
+                        # first we say how many information we are sending
+                        print(len(data))
+                        msg += len(data).to_bytes(1, 'big')
+
+                        # then we print the data to log in the server side and create the msg
+                        for info in data:
+                            print(info)
+                            # id
+                            msg += info[0].to_bytes(1, 'big')
+                            # name
+                            msg += len(info[1].encode()).to_bytes(1, 'big') + info[1].encode()
+                            # age
+                            msg += info[2].to_bytes(1, 'big')
+                            # sex
+                            msg += info[3].encode()
+                            # adress
+                            msg += len(info[4].encode()).to_bytes(1, 'big') + info[4].encode()
+                            # sector
+                            msg += len(info[5].encode()).to_bytes(1, 'big') + info[5].encode()
+                            # salary
+                            msg += len(info[6].encode()).to_bytes(1, 'big') + info[6].encode()
+                    
+                    else:
+                        print("No employee data found:", data)
+                        msg += data.to_bytes(1, 'big', signed=True)
+                        
+                    client_socket.send(msg)
+
+
 def main():
     c = CRUD()
     print("Started server")

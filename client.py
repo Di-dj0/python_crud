@@ -60,13 +60,9 @@ def createRequest(opcode, id = None, name = None, age = None, sex = None, adress
             msg += len(adress.encode()).to_bytes(1, 'big') + adress.encode()
             msg += len(sector.encode()).to_bytes(1, 'big') + sector.encode()
             msg += len(salary.encode()).to_bytes(1, 'big') + salary.encode()
-
-            return msg
-        
+      
         case 2:
             msg += id.to_bytes(1, 'big')
-
-            return msg
 
         case 3:
             msg += id.to_bytes(1, 'big')
@@ -80,17 +76,15 @@ def createRequest(opcode, id = None, name = None, age = None, sex = None, adress
                 msg += mode.encode()
                 msg += age.to_bytes(1, 'big')
 
-
             msg += len(sex.encode()).to_bytes(1, 'big') + sex.encode()
             msg += len(adress.encode()).to_bytes(1, 'big') + adress.encode()
             msg += len(sector.encode()).to_bytes(1, 'big') + sector.encode()
             msg += len(salary.encode()).to_bytes(1, 'big') + salary.encode()
-            return msg
 
         case 4:
             msg += id.to_bytes(1, 'big')
 
-            return msg
+    return msg
 
 def main():
     # we start creating the socket and option variable
@@ -106,6 +100,8 @@ def main():
                         \n2. Procurar empregado por id\
                         \n3. Atualize os dados de um empregado através de ID\
                         \n4. Deletar empregado\
+                        \n5. Mostrar empregados cadastrados\
+                        \n\
                         \n0. Sair\n"))
         
         match option:
@@ -176,14 +172,13 @@ def main():
                         print("Id não encontrado ou atualização não realizada!\n\n")
 
                     else:
-                        print(f" id:{id} atualizado com sucesso!\n")
+                        print(f"Id:{id} atualizado com sucesso!\n")
 
                 except ConnectionAbortedError as e:
                     print("Conexão com o servidor abortada:", e)
 
             case 4:
                 id = int(input("Digite o ID que deseja deletar:\n"))
-
 
                 msg = createRequest(option, id)
                 client.send(msg)
@@ -198,6 +193,46 @@ def main():
                         print(f" id:{id} Deletado com sucesso!\n")
                     else:
                         print("O empregado não foi deletado por motivos desconhecidos. Tente novamente!\n\n")
+
+                except ConnectionAbortedError as e:
+                    print("Conexão com o servidor abortada:", e)
+
+            case 5:
+                msg = createRequest(option)
+                client.send(msg)
+                clear()
+
+                try:
+                    opcode = int.from_bytes(client.recv(1), 'big')
+                    pkg_size = int.from_bytes(client.recv(1), 'big', signed=True)
+                    data = []
+
+                    if pkg_size != -1:
+                        for i in range(0, pkg_size):
+                            id = int.from_bytes(client.recv(1), 'big')
+                            name_size = int.from_bytes(client.recv(1), 'big')
+                            name = client.recv(name_size).decode()
+                            age = int.from_bytes(client.recv(1), "big")
+                            sex = client.recv(1).decode()
+                            adr_size = int.from_bytes(client.recv(1), 'big')
+                            adr = client.recv(adr_size).decode()
+                            sec_size = int.from_bytes(client.recv(1), 'big')
+                            sec = client.recv(sec_size).decode()
+                            sal_size = int.from_bytes(client.recv(1), 'big')
+                            sal = client.recv(sal_size).decode()
+                            data.append((id, name, age, sex, adr, sec, sal))
+
+                        for info in data:
+                            print(f"Empregado {info[0]}\
+                                  \nNome: {info[1]}\
+                                  \nIdade: {info[2]}\
+                                  \nSexo: {info[3]}\
+                                  \nEndereço: {info[4]}\
+                                  \nSetor: {info[5]}\
+                                  \nSalário: {info[6]}\n")
+
+                    else:
+                        print("Nenhum empregado foi encontrado!")
 
                 except ConnectionAbortedError as e:
                     print("Conexão com o servidor abortada:", e)
