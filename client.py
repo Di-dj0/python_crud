@@ -1,6 +1,10 @@
 import socket
 import re
 import os
+import Pyro5
+import Pyro5.client
+import Pyro5.api
+import objects
 
 # simple function to clear the console by os
 clear = lambda: os.system('cls' if os.name=='nt' else 'clear')
@@ -49,51 +53,19 @@ def searchString(regex, input):
             match = re.search(regex, input)
     return input
 
-def createRequest(opcode, id = None, name = None, age = None, sex = None, adress = None, sector = None, salary = None):
-    msg = opcode.to_bytes(1, 'big')
-    
-    match opcode:
-        case 1:
-            msg += len(name.encode()).to_bytes(1, 'big') + name.encode()
-            msg += age.to_bytes(1, 'big')
-            msg += sex.encode()
-            msg += len(adress.encode()).to_bytes(1, 'big') + adress.encode()
-            msg += len(sector.encode()).to_bytes(1, 'big') + sector.encode()
-            msg += len(salary.encode()).to_bytes(1, 'big') + salary.encode()
-      
-        case 2:
-            msg += id.to_bytes(1, 'big')
-
-        case 3:
-            msg += id.to_bytes(1, 'big')
-            msg += len(name.encode()).to_bytes(1, 'big') + name.encode()
-
-            if age == "":
-                mode = '1'
-                msg += mode.encode()
-            else:
-                mode = '0'
-                msg += mode.encode()
-                msg += age.to_bytes(1, 'big')
-
-            msg += len(sex.encode()).to_bytes(1, 'big') + sex.encode()
-            msg += len(adress.encode()).to_bytes(1, 'big') + adress.encode()
-            msg += len(sector.encode()).to_bytes(1, 'big') + sector.encode()
-            msg += len(salary.encode()).to_bytes(1, 'big') + salary.encode()
-
-        case 4:
-            msg += id.to_bytes(1, 'big')
-
-    return msg
 
 def main():
-    # we start creating the socket and option variable
-    # AF_INET = IPV4; SOCK_STREAM = TCP
-    client = socket.socket(socket.AF_INET, 
-                        socket.SOCK_STREAM)
-    client.connect(('127.0.0.1', 50000))
-    option = None
 
+    Pyro5.api.register_class_to_dict(objects.CRUD_object, objects.convert_to_dict)
+    Pyro5.api.register_dict_to_class('objects.CRUD_object', objects.convert_to_object)
+    CRUD = Pyro5.client.Proxy("PYRONAME:CRUD")
+
+    if CRUD._pyroBind():
+        print('Now we have the remote object')
+    else:
+        print('For some reason we don\'t have the remote object')
+
+    option = None
     while option != 0:
         option = int(input("Selecione uma das opções abaixo\
                         \n1. Adicionar novo empregado\
@@ -107,135 +79,42 @@ def main():
         match option:
             case 1:
                 name, age, sex, adress, sector, salary = askInfo()
-                msg = createRequest(option, None, name, age, sex, adress, sector, salary)
-                client.send(msg)
-                clear()
-
-                try:
-                    opcode = client.recv(1)
-                    id = int.from_bytes(client.recv(1), 'big', signed=True)
-                    if id == -1:
-                        print("Um erro ocorreu na inserção do empregado!")
-                    else:
-                        print(f"Empregado {name} adicionado com sucesso!\nID: {id}")
-                except ConnectionAbortedError as e:
-                    print("Conexão com o servidor abortada:", e)
+                employee = objects.CRUD_object(name, age, sex, adress, sector, salary)
+                id = CRUD.adicionar(employee)
+                employee.id = id
+                print(f"Empregado {employee.id} adicionado com sucesso!\n\)n")
 
             case 2:
+
                 id = int(input("Digite o ID a ser procurado:\n"))
-                msg = createRequest(option, id)
-                client.send(msg)
-                clear()
-
-                try:
-                    opcode = int.from_bytes(client.recv(1), 'big', signed=True)
-
-                    if opcode == -1:
-                        print("Empregado não encontrado!\n\n")
-                    
-                    else:
-                        id = int.from_bytes(client.recv(1), 'big')
-                        name_size = int.from_bytes(client.recv(1), 'big')
-                        name = client.recv(name_size).decode()
-                        age = int.from_bytes(client.recv(1), "big")
-                        sex = client.recv(1).decode()
-                        adr_size = int.from_bytes(client.recv(1), 'big')
-                        adr = client.recv(adr_size).decode()
-                        sec_size = int.from_bytes(client.recv(1), 'big')
-                        sec = client.recv(sec_size).decode()
-                        sal_size = int.from_bytes(client.recv(1), 'big')
-                        sal = client.recv(sal_size).decode()
-
-                        clear()
-                        print(f"ID encontrado:\
-                            \nNome: {name}\
-                            \nIdade: {age}\
-                            \nSexo: {sex}\
-                            \nEndereço: {adr}\
-                            \nSetor: {sec}\
-                            \nSalário: {sal}\n")
-                except ConnectionAbortedError as e:
-                    print("Conexão com o servidor abortada:", e)
+                employee = CRUD.buscar(id)
+                if employee is not None:
+                    print(employee.id, employee.name, employee.sex, employee.age, employee.adress, employee.sector, employee.salary)
+                else:
+                    print("Empregado não encontrado!\n\n")
 
             case 3:
                 id = int(input("Digite o ID que deseja atualizar:\n"))
                 print("Digite os dados que deseja atualizar, e para os demais pressione enter\n")
                 name, age, sex, adress, sector, salary = askInfo()
-                msg = createRequest(option, id, name, age, sex, adress, sector, salary)
-                client.send(msg)
-                clear()
-
-                try:
-                    opcode = int.from_bytes(client.recv(1), 'big', signed=True)
-
-                    if opcode == -1:
-                        print("Id não encontrado ou atualização não realizada!\n\n")
-
-                    else:
-                        print(f"Id:{id} atualizado com sucesso!\n")
-
-                except ConnectionAbortedError as e:
-                    print("Conexão com o servidor abortada:", e)
+                employee = objects.CRUD_object(name, age, sex, adress, sector, salary)
+                updates = CRUD.atualizar(id, employee)
+                if updates is not None:
+                    print(f"Empregado {updates.id} atualizado com sucesso!\n")
+                else:
+                    print("O empregado não foi atualizado por motivos desconhecidos. Tente novamente!\n\n")
 
             case 4:
                 id = int(input("Digite o ID que deseja deletar:\n"))
-
-                msg = createRequest(option, id)
-                client.send(msg)
-                clear()
-
-                try:
-                    status = client.recv(1).decode()
-
-                    if status == 'N':
-                        print("Id não encontrado ou empregado não existente!\n\n")
-                    elif status == 'S':
-                        print(f" id:{id} Deletado com sucesso!\n")
-                    else:
-                        print("O empregado não foi deletado por motivos desconhecidos. Tente novamente!\n\n")
-
-                except ConnectionAbortedError as e:
-                    print("Conexão com o servidor abortada:", e)
+                employee = CRUD.deletar(id)
+                if employee is not None:
+                    print(f"Empregado {employee.id} deletado com sucesso!\n")
+                else:
+                    print("O empregado não foi deletado por motivos desconhecidos. Tente novamente!\n\n")
 
             case 5:
-                msg = createRequest(option)
-                client.send(msg)
-                clear()
-
-                try:
-                    opcode = int.from_bytes(client.recv(1), 'big')
-                    pkg_size = int.from_bytes(client.recv(1), 'big', signed=True)
-                    data = []
-
-                    if pkg_size != -1:
-                        for i in range(0, pkg_size):
-                            id = int.from_bytes(client.recv(1), 'big')
-                            name_size = int.from_bytes(client.recv(1), 'big')
-                            name = client.recv(name_size).decode()
-                            age = int.from_bytes(client.recv(1), "big")
-                            sex = client.recv(1).decode()
-                            adr_size = int.from_bytes(client.recv(1), 'big')
-                            adr = client.recv(adr_size).decode()
-                            sec_size = int.from_bytes(client.recv(1), 'big')
-                            sec = client.recv(sec_size).decode()
-                            sal_size = int.from_bytes(client.recv(1), 'big')
-                            sal = client.recv(sal_size).decode()
-                            data.append((id, name, age, sex, adr, sec, sal))
-
-                        for info in data:
-                            print(f"Empregado {info[0]}\
-                                  \nNome: {info[1]}\
-                                  \nIdade: {info[2]}\
-                                  \nSexo: {info[3]}\
-                                  \nEndereço: {info[4]}\
-                                  \nSetor: {info[5]}\
-                                  \nSalário: {info[6]}\n")
-
-                    else:
-                        print("Nenhum empregado foi encontrado!")
-
-                except ConnectionAbortedError as e:
-                    print("Conexão com o servidor abortada:", e)
+                #Busca todos aqui
+                employees = CRUD.buscarTudo()
 
 
 
