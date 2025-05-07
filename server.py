@@ -59,7 +59,8 @@ def main():
 
     ns = Pyro5.core.locate_ns()
     ns.register("CRUD", localizacao)
-
+    # initiate the main loop for requests
     daemon.requestLoop()
+
 if __name__ == "__main__":
     main()

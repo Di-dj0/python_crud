@@ -1,4 +1,4 @@
-import sqlite3
+import sqlite3, threading
 
 class database_handler:
 
@@ -13,6 +13,11 @@ class database_handler:
         
         # close the cursor
         cursor.close()
+        # here we lock the thread for the sqlite implementation
+        self.lock = threading.Lock()
+        # and we allow coonections to use this thread
+        self.connection = sqlite3.connect("database.db", check_same_thread=False)
+
 
     def add_new_employee(self, name, age, sex, adress, sector, salary):
         # create a cursor to execute sql code
@@ -99,6 +104,3 @@ class database_handler:
         cursor.close()
         
         return data if data else -1
-
-        
-
