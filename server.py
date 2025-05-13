@@ -48,6 +48,18 @@ class CRUD:
                 return False
         else:
             return None
+        
+    def buscarTudo(self):
+        data = self.database.return_all_employee_data()
+        search_result = []
+        if data is not None:
+            for employee in data:
+                print(employee)
+                search_result.append(objects.CRUD_object(employee[1], employee[2], employee[3], employee[4], employee[5], employee[6], employee[0]))
+            print(search_result)
+            return search_result
+        else:
+            return None
 
 def main():
     c = CRUD()

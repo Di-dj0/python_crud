@@ -76,6 +76,8 @@ def main():
                         \n\
                         \n0. Sair\n"))
         
+        clear()
+
         match option:
             case 1:
                 name, age, sex, adress, sector, salary = askInfo()
@@ -115,8 +117,12 @@ def main():
             case 5:
                 #Busca todos aqui
                 employees = CRUD.buscarTudo()
-
-
+                if employees is not None:
+                    print(f"Eis as infos que encontrei:")
+                    for e in employees:
+                        print(f"ID: {e.id}, Nome: {e.name}, Idade: {e.age}, Sexo: {e.sex}, Endereço: {e.adress}, Setor: {e.sector}, Salário: {e.salary}")
+                else:
+                    print("Não encontrei informações de cadastros!")
 
 if __name__ == "__main__":
     main()
