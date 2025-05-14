@@ -5,6 +5,7 @@ import Pyro5.core
 import Pyro5.server
 import Pyro5.nameserver
 import objects
+import os
 import database_handler as db
 
 @Pyro5.server.expose
@@ -12,6 +13,7 @@ import database_handler as db
 class CRUD:
 
     def __init__(self):
+        print("Started server")
         self.database = db.database_handler()
 
     def adicionar(self, employee: objects.CRUD_object) -> int:
@@ -20,7 +22,7 @@ class CRUD:
 
     def buscar(self, id:int):
         data = self.database.search_employee(id)
-        if data is not None:
+        if data != -1:
             employee = objects.CRUD_object(data[1], data[2], data[3], data[4], data[5], data[6], id)
             return employee
         else:
@@ -28,9 +30,9 @@ class CRUD:
 
     def atualizar(self, id:int, employee: objects.CRUD_object):
         data = self.database.search_employee(id)
-        if data is not None:
+        if data != -1:
             update = self.database.update_employee_data(employee.name, employee.age, employee.sex, employee.adress, employee.sector, employee.salary)
-            if update is not None:
+            if update != -1:
                 employee = objects.CRUD_object(update[1], update[2], update[3], update[4], update[5], update[6], id)
                 return employee
             else:
@@ -40,7 +42,7 @@ class CRUD:
 
     def deletar(self, id:int):
         data = self.database.search_employee(id)
-        if data is not None:
+        if data != -1:
             result = self.database.delete_employee_data(id)
             if result == id:
                 return True
@@ -60,6 +62,10 @@ class CRUD:
             return search_result
         else:
             return None
+
+# simple function to clear the console by os
+clear = lambda: os.system('cls' if os.name=='nt' else 'clear')
+clear()
 
 def main():
     c = CRUD()
