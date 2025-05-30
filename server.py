@@ -1,5 +1,6 @@
 import re
 import cherrypy
+
 import database_handler as db
 
 numbers_regex = r'-?\d+(?:\.\d+)?'
@@ -18,6 +19,7 @@ def searchString(regex, input):
 class CRUD:
 
     def __init__(self):
+        print("Started server")
         self.database = db.database_handler()
 
     #Now functions receive parameters as kwargs so we are able to pass parameters dynamically
@@ -52,7 +54,7 @@ class CRUD:
         else:
             raise cherrypy.HTTPError(400, "You missed the 'id' key")
 
-#How to filter update data?
+    #How to filter update data?
     def atualizar(self, **kwargs):
         keys = {'id', 'name', 'age', 'sex', 'adress', 'sector', 'salary'}
 
@@ -124,6 +126,10 @@ class CRUD:
         else:
             #If there is no data, should we send response 204?
             return None
+
+# simple function to clear the console by os
+clear = lambda: os.system('cls' if os.name=='nt' else 'clear')
+clear()
 
 def main():
     c = CRUD()
