@@ -4,3 +4,11 @@
 # documents
 *.docx
 *.pdf
+
+# compressed files
+*.zip
+
+# images
+*.png
+*.jpg
+*.jpeg

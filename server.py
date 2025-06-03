@@ -1,5 +1,7 @@
 import re
 import cherrypy
+import os
+import json
 
 import database_handler as db
 
@@ -23,21 +25,68 @@ class CRUD:
         self.database = db.database_handler()
 
     #Now functions receive parameters as kwargs so we are able to pass parameters dynamically
+    @cherrypy.tools.json_in()
     def adicionar(self, **kwargs):
-        keys = {'name','age','sex','adress','sector','salary'}
+
+        # Added an obj data to work with jsons
+        data = cherrypy.request.json
+
+        keys_required = {'name','age','sex','adress','sector','salary'}
+
+
         # Check if all keys are in kwargs
-        if set(kwargs.keys()).issuperset(keys):
-            if searchString(numbers_regex, kwargs['name']) is not None and searchString(numbers_regex,kwargs['age']) is not None and searchString(numbers_regex, kwargs['sector']) is not None and searchString(letters_and_symbols_regex, kwargs['salary']) is not None and (kwargs['sex'] == 'M' or kwargs['sex'] == 'F'):
-                id_recebido = self.database.add_new_employee(kwargs['name'], int(kwargs['age']), kwargs['sex'], kwargs['adress'], kwargs['sector'], kwargs['salary'])
-                if id_recebido is not None:
-                    cherrypy.response.status = "201"
-                    return f"<div>Usuário inserido com ID {id_recebido}.</div>"
-                else:
-                    raise cherrypy.HTTPError(500, "Failed to insert employee data into the database")
+        if not keys_required.issubset(data.keys()):
+            missing_keys = keys_required - set(data.keys())
+            raise cherrypy.HTTPError(400, f"Missed one or more requered keys: {', '.join(missing_keys)}")
+
+        if  searchString(numbers_regex, str(data.get('name'))) is not None and \
+            searchString(letters_and_symbols_regex, str(data.get('age'))) is not None and \
+            searchString(numbers_regex, str(data.get('sector'))) is not None and \
+            searchString(letters_and_symbols_regex, str(data.get('salary'))) is not None and \
+            (data.get('sex') == 'M' or data.get('sex') == 'F'):
+
+            # Verify simple gramatic errors
+            try:
+                age = int(data['age'])
+                salary = float(data['salary']) 
+            except ValueError:
+                raise cherrypy.HTTPError(422, "Age and Salary must be numbers")
+
+            id_recebido = self.database.add_new_employee(
+                data['name'], 
+                age,
+                data['sex'], 
+                data['adress'], 
+                data['sector'], 
+                salary
+                )
+
+            if id_recebido is not None:
+                cherrypy.response.status = "201"
+                cherrypy.response.headers['Content-Type'] = 'application/json'
+                return json.dumps({"message": f"Successul insertion for user {id_recebido}."}).encode('utf-8')
             else:
-                raise cherrypy.HTTPError(422, 'One of the values is not valid')
+                raise cherrypy.HTTPError(500, "Erro in trying to insert user.")
+            
         else:
-            raise cherrypy.HTTPError(400,"You missed one or more keys")
+            # This is used to build a more specific error message using our regexes
+            errors = []
+            if searchString(numbers_regex, str(data.get('age'))) is not None:
+                errors.append("Invalid Name (Has numbers).")
+
+            if searchString(letters_and_symbols_regex, str(data.get('age'))) is not None:
+                errors.append("Invalid Age (Must be a number).")
+            
+            if data.get('sex') not in ['M', 'F']:
+                errors.append("Invalid Gender (Mus be M or F).")
+            
+            if searchString(numbers_regex, str(data.get('sector'))) is None:
+                 errors.append("Invalid Sector (Has numbers).")
+            
+            if searchString(letters_and_symbols_regex, str(data.get('salary'))) is not None:
+                 errors.append("Invalid Salary (Must be a number).")
+            
+            raise cherrypy.HTTPError(422, f"One or more values are incorrect: {'; '.join(errors)}")
 
     def buscar(self, **kwargs):
         if 'id' in kwargs.keys():
@@ -54,53 +103,74 @@ class CRUD:
         else:
             raise cherrypy.HTTPError(400, "You missed the 'id' key")
 
-    #How to filter update data?
-    def atualizar(self, **kwargs):
-        keys = {'id', 'name', 'age', 'sex', 'adress', 'sector', 'salary'}
+    @cherrypy.tools.json_in()
+    def atualizar(self, id, **kwargs):
 
-        invalid_keys = set(kwargs.keys()) - keys
-        if invalid_keys:
-            raise cherrypy.HTTPError(400, f"Invalid keys provided: {', '.join(invalid_keys)}")
+        data_to_update = cherrypy.request.json
 
-        if 'id' not in kwargs.keys():
-            raise cherrypy.HTTPError(400, "You missed the 'id' key")
+        if not id.isdigit():
+            raise cherrypy.HTTPError(400, "Invalid ID Format (Must be an Integer).")
 
-        id_update = int(kwargs['id'])
+        id_update = int(id)
         existing_data = self.database.search_employee(id_update)
 
-        if existing_data == -1:
+        if existing_data == -1 or existing_data is None:
             raise cherrypy.HTTPError(404, "Employee not found")
 
-        if 'name' in kwargs and searchString(numbers_regex, kwargs['name']) is not None:
-            raise cherrypy.HTTPError(422, "Value not valid for 'name'")
-        if 'age' in kwargs and searchString(numbers_regex, kwargs['age']) is not None:
-            raise cherrypy.HTTPError(422, "Value not valid for 'age'")
-        if 'sex' in kwargs and kwargs['sex'] not in ['M', 'F']:
-            raise cherrypy.HTTPError(422, "Value not valid for 'sex'")
-        if 'adress' in kwargs and searchString(numbers_regex, kwargs['adress']) is not None:
-            raise cherrypy.HTTPError(422, "Value not valid for 'adress'")
-        if 'sector' in kwargs and searchString(numbers_regex, kwargs['sector']) is not None:
-            raise cherrypy.HTTPError(422, "Value not valid for 'sector'")
-        if 'salary' in kwargs and searchString(letters_and_symbols_regex, kwargs['salary']) is not None:
-            raise cherrypy.HTTPError(422, "Value not valid for 'salary'")
+        # Same logi as in Add()
+        validation_errors = []
+        if 'name' in data_to_update and searchString(numbers_regex, str(data_to_update['name'])) is None:
+            validation_errors.append("Invalid value for 'name' (Has numbers).")
 
-        # Use provided values or fallback to existing data
-        updated_name = kwargs.get('name', existing_data[1])
-        updated_age = int(kwargs.get('age', existing_data[2]))
-        updated_sex = kwargs.get('sex', existing_data[3])
-        updated_adress = kwargs.get('adress', existing_data[4])
-        updated_sector = kwargs.get('sector', existing_data[5])
-        updated_salary = kwargs.get('salary', existing_data[6])
+        if 'age' in data_to_update:
+            if searchString(letters_and_symbols_regex, str(data_to_update['age'])) is None: # Deve ser número
+                 validation_errors.append("Invalid value for 'age' (Must be a number).")
+            else:
+                try:
+                    data_to_update['age'] = int(data_to_update['age'])
+                except ValueError:
+                    validation_errors.append("'age' must be a valid integer.")
 
-        # Update the employee data
-        updated_data = self.database.update_employee_data(
-            updated_name, updated_age, updated_sex, updated_adress, updated_sector, updated_salary
+        if 'sex' in data_to_update and data_to_update['sex'] not in ['M', 'F']:
+            validation_errors.append("Invalid value for 'sex' (Must be M or F).")
+        
+        if 'sector' in data_to_update and searchString(numbers_regex, str(data_to_update['sector'])) is None: # Não deve ter números
+            validation_errors.append("Invalid value for 'sector' (Has numbers).")
+
+        if 'salary' in data_to_update:
+            if searchString(letters_and_symbols_regex, str(data_to_update['salary'])) is None: # Deve ser número
+                validation_errors.append("Invalid value for 'salary' (Must be a number).")
+            else:
+                try:
+                    data_to_update['salary'] = float(data_to_update['salary'])
+                except ValueError:
+                    validation_errors.append("'salary' must be a valid number.")
+
+        if validation_errors:
+            raise cherrypy.HTTPError(422, f"Invalid values: {'; '.join(validation_errors)}")
+
+        updated_name = data_to_update.get('name', existing_data[1])
+        updated_age = data_to_update.get('age', existing_data[2])
+        updated_sex = data_to_update.get('sex', existing_data[3])
+        updated_adress = data_to_update.get('adress', existing_data[4]) 
+        updated_sector = data_to_update.get('sector', existing_data[5])
+        updated_salary = data_to_update.get('salary', existing_data[6]) 
+
+        success = self.database.update_employee_data( # Adicionei id_update aqui
+            id_update, 
+            updated_name, 
+            int(updated_age),
+            updated_sex, 
+            updated_adress, 
+            updated_sector, 
+            float(updated_salary)
         )
 
-        if updated_data is not None:
-            return f"<div>Empregado: {id_update} atualizado com sucesso.</div>"
+        if success is not None:
+            cherrypy.response.headers['Content-Type'] = 'application/json'
+            return json.dumps({"message": f"Employee: {id_update} updated."}).encode('utf-8')
         else:
-            raise cherrypy.HTTPError(500, "Failed to update employee data")
+            raise cherrypy.HTTPError(500, "Error updating the employee data!")
 
     def deletar(self, **kwargs):
         if 'id' not in kwargs.keys():
@@ -133,23 +203,40 @@ clear()
 
 def main():
     c = CRUD()
+
     despachante = cherrypy.dispatch.RoutesDispatcher()
 
     despachante.connect(name='Adicionar', route='/employee_data', controller=c,
                         action='adicionar', conditions=dict(method=['POST']))
+    
     despachante.connect(name='buscarEmpregados', route='/employee_data', controller=c,
                         action='buscarTudo', conditions=dict(method=['GET']))
+    
     despachante.connect(name='buscarEmpregado', route='/employee_data/:id', controller=c,
                         action='buscar', conditions=dict(method=['GET']))
-    #PATCH because it is partial update
+    
+    # PATCH because it is partial update
     despachante.connect(name='atualizaEmpregado', route='/employee_data/:id', controller=c,
                     action='atualizar', conditions=dict(method=['PATCH']))
+    
     despachante.connect(name='deletaEmpregado', route='/employee_data/:id', controller=c,
                         action='deletar', conditions=dict(method=['DELETE']))
 
-    conf = {'/': {'request.dispatch': despachante}}
-    cherrypy.tree.mount(root=None, config=conf)
+    # conf = {'/': {'request.dispatch': despachante}}
+    
+    conf = {
+        '/': {
+            'request.dispatch': cherrypy.dispatch.MethodDispatcher(), # MethodDispatcher to map HTTP verbs
+            'tools.response_headers.on': True,
+            'tools.response_headers.headers': [('Content-Type', 'application/json')] # Default Content-Type
+        }
+    }
+
+    config_app = {'/': {'request.dispatch': despachante}}
+
+    cherrypy.tree.mount(root=None, config=config_app)
     cherrypy.config.update({'server.socket_port': 8080})
+
     cherrypy.engine.start()
     cherrypy.engine.block()
 
