@@ -24,7 +24,7 @@ class CRUD:
         print("Started server")
         self.database = db.database_handler()
 
-    #Now functions receive parameters as kwargs so we are able to pass parameters dynamically
+    # now functions receive parameters as kwargs so we are able to pass parameters dynamically
     @cherrypy.tools.json_in()
     def adicionar(self, **kwargs):
 
@@ -32,7 +32,6 @@ class CRUD:
         data = cherrypy.request.json
 
         keys_required = {'name','age','sex','adress','sector','salary'}
-
 
         # Check if all keys are in kwargs
         if not keys_required.issubset(data.keys()):
@@ -105,72 +104,100 @@ class CRUD:
 
     @cherrypy.tools.json_in()
     def atualizar(self, id, **kwargs):
-
         data_to_update = cherrypy.request.json
 
         if not id.isdigit():
             raise cherrypy.HTTPError(400, "Invalid ID Format (Must be an Integer).")
 
         id_update = int(id)
+         # Returns a tuple or None
         existing_data = self.database.search_employee(id_update)
 
-        if existing_data == -1 or existing_data is None:
+        if existing_data is None:
             raise cherrypy.HTTPError(404, "Employee not found")
 
-        # Same logi as in Add()
         validation_errors = []
-        if 'name' in data_to_update and searchString(numbers_regex, str(data_to_update['name'])) is None:
-            validation_errors.append("Invalid value for 'name' (Has numbers).")
+        processed_input_data = {}
+
+        if 'name' in data_to_update:
+            name_str = str(data_to_update['name'])
+            if not name_str.strip():
+                validation_errors.append("'name' cannot be empty if provided.")
+            elif re.search(numbers_regex, name_str): 
+                validation_errors.append("Invalid value for 'name' (cannot contain numbers).")
+            else:
+                processed_input_data['name'] = name_str.strip()
 
         if 'age' in data_to_update:
-            if searchString(letters_and_symbols_regex, str(data_to_update['age'])) is None: # Deve ser número
-                 validation_errors.append("Invalid value for 'age' (Must be a number).")
-            else:
-                try:
-                    data_to_update['age'] = int(data_to_update['age'])
-                except ValueError:
-                    validation_errors.append("'age' must be a valid integer.")
+            try:
+                age_val = int(str(data_to_update['age']))
+                if age_val <= 0:
+                    validation_errors.append("'age' must be a positive integer.")
+                else:
+                    processed_input_data['age'] = age_val
+            except ValueError:
+                validation_errors.append("'age' must be a valid integer.")
 
-        if 'sex' in data_to_update and data_to_update['sex'] not in ['M', 'F']:
-            validation_errors.append("Invalid value for 'sex' (Must be M or F).")
+        if 'sex' in data_to_update:
+            sex_str = str(data_to_update['sex']).upper()
+            if sex_str not in ['M', 'F']:
+                validation_errors.append("Invalid value for 'sex' (Must be M or F).")
+            else:
+                processed_input_data['sex'] = sex_str
         
-        if 'sector' in data_to_update and searchString(numbers_regex, str(data_to_update['sector'])) is None: # Não deve ter números
-            validation_errors.append("Invalid value for 'sector' (Has numbers).")
+        if 'adress' in data_to_update:
+            adress_str = str(data_to_update['adress'])
+            if not adress_str.strip():
+                validation_errors.append("'adress' cannot be empty if provided.")
+            else:
+                processed_input_data['adress'] = adress_str.strip()
+
+        # user provides sector name
+        if 'sector' in data_to_update:
+            sector_str = str(data_to_update['sector'])
+            if not sector_str.strip():
+                validation_errors.append("'sector' name cannot be empty if provided.")
+            elif re.search(numbers_regex, sector_str):
+                validation_errors.append("Invalid value for 'sector' name (cannot contain numbers).")
+            else:
+                processed_input_data['sector'] = sector_str.strip()
 
         if 'salary' in data_to_update:
-            if searchString(letters_and_symbols_regex, str(data_to_update['salary'])) is None: # Deve ser número
-                validation_errors.append("Invalid value for 'salary' (Must be a number).")
-            else:
-                try:
-                    data_to_update['salary'] = float(data_to_update['salary'])
-                except ValueError:
-                    validation_errors.append("'salary' must be a valid number.")
+            try:
+                salary_val = float(str(data_to_update['salary']))
+                if salary_val < 0:
+                    validation_errors.append("'salary' cannot be negative.")
+                else:
+                    processed_input_data['salary'] = salary_val
+            except ValueError:
+                validation_errors.append("'salary' must be a valid number (e.g., 1200.50).")
 
         if validation_errors:
             raise cherrypy.HTTPError(422, f"Invalid values: {'; '.join(validation_errors)}")
 
-        updated_name = data_to_update.get('name', existing_data[1])
-        updated_age = data_to_update.get('age', existing_data[2])
-        updated_sex = data_to_update.get('sex', existing_data[3])
-        updated_adress = data_to_update.get('adress', existing_data[4]) 
-        updated_sector = data_to_update.get('sector', existing_data[5])
-        updated_salary = data_to_update.get('salary', existing_data[6]) 
+        updated_name = processed_input_data.get('name', existing_data[1])
+        updated_age = processed_input_data.get('age', existing_data[2])
+        updated_sex = processed_input_data.get('sex', existing_data[3])
+        updated_adress = processed_input_data.get('adress', existing_data[4]) 
+        updated_sector_name = processed_input_data.get('sector', existing_data[5])
+        updated_salary = processed_input_data.get('salary', existing_data[6])
 
-        success = self.database.update_employee_data( # Adicionei id_update aqui
+        updated_employee_data = self.database.update_employee_data(
             id_update, 
             updated_name, 
-            int(updated_age),
+            int(updated_age),     
             updated_sex, 
             updated_adress, 
-            updated_sector, 
-            float(updated_salary)
+            updated_sector_name,  
+            float(updated_salary) 
         )
 
-        if success is not None:
+        if updated_employee_data is not None: 
             cherrypy.response.headers['Content-Type'] = 'application/json'
-            return json.dumps({"message": f"Employee: {id_update} updated."}).encode('utf-8')
+            return json.dumps({"message": f"Employee: {id_update} updated successfully."}).encode('utf-8')
         else:
-            raise cherrypy.HTTPError(500, "Error updating the employee data!")
+            raise cherrypy.HTTPError(500, "Error updating the employee data in the database.")
+
 
     def deletar(self, **kwargs):
         if 'id' not in kwargs.keys():
@@ -194,12 +221,51 @@ class CRUD:
                 mensagem += '<div>ID: ' + str(employee_data[0]) + '\nName: ' + str(employee_data[1]) + '\nAge: ' + str(employee_data[2]) + '\nSex: ' + str(employee_data[3]) + '\nAddress: ' + str(employee_data[4]) + '\nSector: ' + str(employee_data[5]) + '\nSalary: ' + str(employee_data[6]) + '</div>'
             return mensagem
         else:
-            #If there is no data, should we send response 204?
             return None
 
-# simple function to clear the console by os
-clear = lambda: os.system('cls' if os.name=='nt' else 'clear')
-clear()
+    # --- sector methods ---
+    # the code below here is entirely new
+
+    @cherrypy.expose
+    @cherrypy.tools.json_in()
+    @cherrypy.tools.json_out()
+    def adicionar_setor(self, **kwargs):
+        data = cherrypy.request.json
+        sector_name = data.get('name')
+        if not sector_name or not isinstance(sector_name, str) or sector_name.strip() == "":
+            raise cherrypy.HTTPError(400, "Sector name is required and must be a non-empty string.")
+        
+        sector_id = self.database.add_sector(sector_name.strip())
+        if sector_id:
+            cherrypy.response.status = "201"
+            return {"message": "Sector added successfully.", "sector_id": sector_id}
+        
+        else:
+            existing_sector = self.database._get_or_create_sector_id(sector_name.strip())
+            if existing_sector:
+                 raise cherrypy.HTTPError(409, f"Sector '{sector_name}' already exists with ID {existing_sector}.")
+            raise cherrypy.HTTPError(500, "Failed to add sector.")
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def listar_setores(self):
+        # Returns list of (id, name) tuples
+        sectors = self.database.get_all_sectors()
+        return [{"id": s[0], "name": s[1]} for s in sectors]
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def buscar_setor(self, sector_id):
+        try:
+            sid = int(sector_id)
+        except ValueError:
+            raise cherrypy.HTTPError(400, "Invalid sector ID format (Must be an integer).")
+        
+        sector = self.database.get_sector_by_id(sid)
+        if sector:
+            return {"id": sector[0], "name": sector[1]}
+        else:
+            raise cherrypy.HTTPError(404, "Sector not found.")
 
 def main():
     c = CRUD()
@@ -221,6 +287,14 @@ def main():
     
     despachante.connect(name='deletaEmpregado', route='/employee_data/:id', controller=c,
                         action='deletar', conditions=dict(method=['DELETE']))
+    
+    # --- new Sector Routes ---
+    despachante.connect(name='AdicionarSetor', route='/sectors', controller=c,
+                        action='adicionar_setor', conditions=dict(method=['POST']))
+    despachante.connect(name='ListarSetores', route='/sectors', controller=c,
+                        action='listar_setores', conditions=dict(method=['GET']))
+    despachante.connect(name='BuscarSetor', route='/sectors/:sector_id', controller=c,
+                        action='buscar_setor', conditions=dict(method=['GET']))
 
     # conf = {'/': {'request.dispatch': despachante}}
     
